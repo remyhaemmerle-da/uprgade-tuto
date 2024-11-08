@@ -1,0 +1,14 @@
+sdk-version: 2.10.0-snapshot.20241106.0
+name: my-pkg
+version: 1.1.0
+source: daml/Main.daml
+parties:
+- Alice
+- Bob
+dependencies:
+- daml-prim
+- daml-stdlib
+- daml-script
+upgrades: ../../v1/my-pkg/.daml/dist/my-pkg-1.0.0.dar
+build-options:
+- --target=1.17

@@ -1,0 +1,3 @@
+packages:
+- "./v1/my-pkg"
+- "./v2/my-pkg"

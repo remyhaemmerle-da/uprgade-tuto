@@ -1,0 +1,30 @@
+module Main where
+
+import Daml.Script
+
+template IOU
+  with
+    issuer: Party
+    owner: Party
+    value: Int
+    currency: Optional Text -- New field
+  where
+    signatory issuer
+    observer owner
+    key issuer : Party
+    maintainer key
+
+mkIOU : Script Party
+mkIOU = do
+  alice <- allocateParty "alice"
+  alice `submit` createCmd (IOU alice alice 1 (Some "USD"))
+  pure alice
+
+mkIOUWithoutCurrency : Script Party
+mkIOUWithoutCurrency = do
+  alice <- allocateParty "alice"
+  alice `submit` createCmd (IOU alice alice 1 None)
+  pure alice
+
+getIOU : Party -> Script (Optional (ContractId IOU, IOU))
+getIOU key = queryContractKey @IOU key key
