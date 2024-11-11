@@ -1,0 +1,17 @@
+module Asset where
+
+data View = View with
+    owner : Party
+    description: Text
+  deriving Show
+
+interface Asset where
+  viewtype View
+
+  assetOwner: Party
+  version: Text
+
+  nonconsuming choice GetVersion : Text
+    controller (assetOwner this)
+    do
+      pure $ version this

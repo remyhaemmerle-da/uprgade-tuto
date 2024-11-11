@@ -1,0 +1,109 @@
+module Helper where
+
+import IOU(IOU)
+import Asset(Asset)
+import qualified Asset
+import qualified IOU
+import qualified DA.Optional as O
+
+template Helper with
+    owner: Party
+  where
+    signatory owner
+
+    choice FetchIOU: IOU with
+        cid: ContractId IOU
+      controller owner
+      do
+        fetch cid
+        -- do
+        -- <tmplId, c> <- ask NeedContract(cid)
+        -- _ <- assert tmplId upgrade IOU
+        -- let iou = upgrade c to IOU
+        -- pure iou
+
+    choice ExeIOU: IOU.Version with
+        cid: ContractId IOU
+      controller owner
+      do
+        exercise cid IOU.GetVersion
+        -- do
+        -- <tmplId, c> <- ask NeedContract cid
+        -- _ <- assert tmplId upgrade IOU
+        -- let iou = upgrade c to IOU
+        -- let ctrl = IOU:ExeIOU:controler
+        -- _ <- assert authority C ctr
+        -- _ <- IOU:ExeIOU (iou)
+
+    choice FetchAsset: Asset.View with
+        cid: ContractId Asset
+      controller owner
+      do
+        asset <- fetch @Asset cid
+        -- do
+        -- <tmplId, c> <- ask NeedContract cid
+        -- _ <- assert c implements Asset
+        -- pure <tmplId, c>
+
+        let v = view asset
+        -- tmplId:Asset:view c
+
+        pure $ v
+
+    choice IouExe: IOU.Version with
+        cid : ContractId IOU
+      controller owner
+      do
+        exercise @IOU cid IOU.GetVersion
+        -- do
+        -- <tmplId, c> <- ask NeedContract cid
+        -- _ <- assert tmplId is an upgrade of IOU
+        -- iou = upgrade c to IOU
+
+        -- pure <tmplId, c>
+
+    choice AssetExe: Text with
+        cid: ContractId Asset
+      controller owner
+      do
+        exercise cid Asset.GetVersion
+        -- do
+        -- <tmplId, c> <- ask NeedContract(id)
+        -- _ <- assert tmplId implement Asset
+        -- let iou = upgrade c to IOU
+        -- let ctrl = IOU:ExeIOU:controler
+        -- _ <- assert authority C ctr
+        -- _ <- Asset:GerVersion (<IOU, iou>)
+        -- pure show $ IOU:Asset:version
+
+
+    choice ToIfaceView: Asset.View with
+        cid: ContractId IOU
+      controller owner
+      do
+        iou <- fetch @IOU cid
+        let asset = toInterface @Asset iou
+        -- asset = (IOU, iou)
+        pure $ view asset
+        -- (IOU, Asset):view
+
+    choice FromToIfaceView: Asset.View with
+        cid: ContractId Asset
+      controller owner
+      do
+        asset <-fetch @Asset cid
+        let iou = O.fromSome $ fromInterface @IOU asset
+        let asset = toInterface @Asset iou
+        pure $ view asset
+
+    choice ExeByKey: IOU.Version with
+       k: IOU.Key
+     controller this.owner
+     do
+        exerciseByKey @IOU k IOU.GetVersion
+
+    choice EvalKey: IOU.Key with
+        cid: ContractId IOU
+      controller owner
+      do
+        key <$> fetch cid

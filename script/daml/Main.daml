@@ -1,0 +1,113 @@
+module Main where
+
+import Daml.Script
+-- import Daml.Script.Internal as LL
+import Asset(Asset)
+import qualified Asset
+import qualified V1.IOU as IOU
+import V1.Helper
+import qualified DA.Optional as O
+
+coerceCid = coerceContractId
+
+data Data = Data with
+  alice: Party
+  bank: Party
+  cid: ContractId IOU.IOU
+  version: IOU.Version
+
+-- pkgId = PackageId "6d62fe8a709620ecec88809f77901b65dbce2639ca15ca9fb51632434baf70c6"
+
+-- mysubmit: Party -> Commands a -> Script a
+-- mysubmit party cmd =
+--   submitWithOptions (actAs party <> LL.packagePreference [pkgId]) cmd
+
+-- Create Initial Data
+init = script do
+  bank <- allocateParty "Bank"
+  alice <- allocateParty "Alice"
+  iou <- submitMulti [bank, alice] [] $ createExactCmd (IOU.mkIou bank alice)
+  pure $ Data with
+    bank = bank
+    alice = alice
+    cid = iou
+    version = IOU.version
+
+-- Helper function to call a choice from Helper
+helper: (Choice Helper c r) => Party -> c -> Script r
+helper owner c =
+    owner `submit` createAndExerciseCmd (Helper owner) c
+
+-- Template Fecth (participant side)
+serverTmplFetch: Data -> Script IOU.IOU
+serverTmplFetch Data{..} =
+  helper alice (FetchIOU cid)
+
+-- Query Template (client side)
+clientTmplQuery: Data -> Script IOU.IOU
+clientTmplQuery Data{..} = do
+  mbContract <- queryContractId @IOU.IOU alice cid
+  -- <tmpl, c> <- find an active Contract with ID cid
+  -- if (tmpl uprade IOU)
+  --   Some (upgrade c to IOU)
+  -- else
+  --   None
+  pure $ O.fromSome mbContract
+
+-- Template Exercise (participant side)
+serverTmplExe: Data -> Script IOU.Version
+serverTmplExe Data{..} =
+  helper alice (ExeIOU cid)
+
+-- Template Exericse (client side)
+clientTmplExe: Data -> Script IOU.Version
+clientTmplExe Data{..} =
+  -- (client) send the command to the ledger API
+  -- (participant) type checks and upgrades choice argument
+  -- (participant) run exe as above
+  -- (client) "upgrades" the result
+  alice `submit` exerciseCmd @IOU.IOU cid IOU.GetVersion
+
+-- Fetch by interface (participant side)
+serverIfaceFetch: Data -> Script Asset.View
+serverIfaceFetch Data{..} = do
+  helper alice (FetchAsset (coerceCid cid))
+
+-- Query by interface  (client side)
+clientIfaceQuery : Data -> Script Asset.View
+clientIfaceQuery Data{..} = do
+  -- <tmpl, c> <- find an active Contract with ID cid
+  -- if (tmpl implement Asset)
+  --   Some (upgrade c.view to IOU)
+  -- else
+  --   None
+  O.fromSome <$> queryInterfaceContractId @Asset.Asset alice (coerceCid cid)
+
+-- Exercise by interface (participant side)
+serverIfaceExe: Data -> Script Text
+serverIfaceExe Data{..} = do
+    helper alice (AssetExe (coerceCid cid))
+
+-- Exercise by interface
+clientIfaceExe : Data -> Script Text
+clientIfaceExe Data{..} = do
+  -- no need of upgrade as interface cannot be uprade
+  alice `submit` exerciseCmd @Asset.Asset (coerceCid cid) Asset.GetVersion
+
+-- Fectch by template -> interface convertion -> view
+serverToIfaceView: Data -> Script Asset.View
+serverToIfaceView Data{..} = do
+  helper alice (ToIfaceView cid)
+
+-- Fetch by interface -> template convertion -> interface convertion -> view
+serverFromToIfaceView: Data -> Script Asset.View
+serverFromToIfaceView Data{..} = do
+  helper alice (FromToIfaceView (coerceCid cid))
+
+-- Query by interface -> interface convertion -> view
+clientToIfaceView: Data -> Script Asset.View
+clientToIfaceView Data{..} = do
+  iou <- O.fromSome <$> queryContractId @IOU.IOU alice cid
+  let asset = toInterface @Asset.Asset iou
+  pure $ view asset
+

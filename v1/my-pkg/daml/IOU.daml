@@ -1,0 +1,42 @@
+module IOU where
+
+import qualified Asset
+
+data Version = Version with
+    major: Int
+    minor: Int
+  deriving (Eq, Show)
+
+version : Version
+version = Version 1 0
+
+mkIou: Party -> Party -> IOU
+mkIou issuer owner = IOU.IOU issuer owner 1
+
+mkKey: Party -> Party -> IOU.Key
+mkKey issuer owner = IOU.Key issuer owner
+
+data Key = Key with
+    issuer: Party
+    owner: Party
+  deriving (Eq, Show)
+
+template IOU
+  with
+    issuer: Party
+    owner: Party
+    value: Int
+  where
+    signatory issuer, owner
+    key (Key issuer owner): Key
+    maintainer key.issuer
+
+    interface instance Asset.Asset for IOU where
+      view = Asset.View owner "IOU.IOU"
+      assetOwner = owner
+      version = show version
+
+    nonconsuming choice GetVersion: Version
+      controller owner
+      do
+        pure version

@@ -1,3 +1,7 @@
 packages:
+- "./iface"
 - "./v1/my-pkg"
+- "./v1/helper"
 - "./v2/my-pkg"
+- "./v2/helper"
+- "./script"
